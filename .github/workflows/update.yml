@@ -1,0 +1,38 @@
+name: Auto Update Malware Database
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # Runs daily
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch MalwareBazaar APK hashes
+        run: |
+          curl -s https://bazaar.abuse.ch/export/csv/filetype:apk \
+          | grep -i apk \
+          | cut -d',' -f1 \
+          >> hashes.txt
+
+      - name: Fetch URLHaus malicious URLs
+        run: |
+          curl -s https://urlhaus.abuse.ch/downloads/text/ \
+          >> urls.txt
+
+      - name: Remove duplicates
+        run: |
+          sort -u hashes.txt -o hashes.txt
+          sort -u urls.txt -o urls.txt
+
+      - name: Commit updates
+        run: |
+          git config user.name "auto-bot"
+          git config user.email "bot@github.com"
+          git add .
+          git commit -m "Auto update threat database" || exit 0
+          git push
